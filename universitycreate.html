@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thesis Database System</title>
+    <script src="http://www.capitolcommons.com.ph/includes/javascript/jquery-1.9.1.js" type="text/javascript" charset="utf-8"></script>
+<script src="http://www.capitolcommons.com.ph/includes/javascript/jquery.scrolly.js" type="text/javascript" charset="utf-8"></script>
+<script type="text/javascript" src="http://www.capitolcommons.com.ph/includes/javascript/jquery-ui.js" type="text/javascript" charset="utf-8"></script>
+
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/jquery.js" ></script>   
+    <link type="text/css" rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div class="page-header">
+    <h1>Create University</h1>
+</div>
+<div class="panel panel-default">
+<div class="panel-body">
+<form class="form-horizontal" id="university-create-form" action="/university/create" method="post">
+    <div class="form-group">
+    <label class="col-lg-3 control-label">University Name:</label>
+        <div class="col-lg-offset-1 col-lg-6">
+        <input type='text' class="form-control" name='university_name' placeholder='university' required autofocus />
+        </div> 
+    </div>
+
+    <div class="form-group">
+    <label class="col-lg-3 control-label">Address:</label>
+        <div class="col-lg-offset-1 col-lg-6">
+        <input type='text' class="form-control" name='address' placeholder='address' required autofocus />
+        </div> 
+    </div>
+
+    <div class="form-group">
+    <label class="col-lg-3 control-label">University Initials:</label>
+        <div class="col-lg-offset-1 col-lg-3">
+        <input type='text' class="form-control" name='initials' placeholder='e.g.PUP' required autofocus />
+        </div> 
+    </div>
+
+
+    <div class="form-group">
+        <div class="col-lg-offset-3 col-lg-5">
+            <button type='submit' class="btn btn-primary" id="submitbtn">SUBMIT</button>
+        </div>
+    </div>
+    </form>
+    <a href="/university/list">View List of Universities</a>  |
+    <a href="/home">Home</a>
+
+</div>
+</div>
+<script type="text/javascript" src='/static/script.js'></script>
+</body>
+</html>
