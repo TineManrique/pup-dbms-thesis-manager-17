@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thesis Database System</title>
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/jquery.js" ></script>   
+    <link type="text/css" rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<a href="/home">Home</a>
+<div class="page-header">
+ <h1>University List</h1>
+</div>
+<div id="panel-thesis-list"class="panel panel-default" style="width:65%; margin-left: 17%">
+<div class="panel-body">
+    <table>
+    	<tr id="thead">
+    		<td>Univesity Name</td>
+    		<td>Address</td>
+    		<td>Initials</td>
+    	</tr>
+    {% for university in university_list %}
+    	<tr id="tbody">
+        	<td  style="width:25%;text-align:center">{{university.university_name}}</a></td>
+        	<td  style="width:25%;text-align:center">{{university.address}}</td>
+        	<td  style="width:25%;text-align:center">{{university.initials}}</td>
+        </tr>
+
+    {% endfor %}
+    </table>
+</div>
+</div>
+</body>
+</html>
