@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thesis Database System</title>
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/jquery.js" ></script>   
+    <link type="text/css" rel="stylesheet" href="/static/style.css" />
+
+<script type="text/javascript">
+$(document).on('click', '#delete', function(){
+        $(this).closest('li').remove();
+    });
+</script>
+</head>
+<body>
+<div class="page-header">
+    <h1>Thesis List</h1>
+</div>
+<div id="panel-thesis-list"class="panel panel-default" style="width:75%; margin-left: 12%">
+<div class="panel-body" >
+
+<div class="col-lg-offset-3" id="filters">
+    <a href="/thesis/list/all">All</a>&nbsp&nbsp|
+    &nbsp&nbsp<a href="/thesis/list/2011">2011</a>&nbsp&nbsp|
+    &nbsp&nbsp<a href="/thesis/list/2012">2012</a>&nbsp&nbsp|
+    &nbsp&nbsp<a href="/thesis/list/2013">2013</a>&nbsp&nbsp|
+    &nbsp&nbsp<a href="/thesis/list/2014">2014</a>&nbsp&nbsp|
+    &nbsp&nbsp<a href="/thesis/list/2015">2015</a>
+</div>
+<table>
+        <tr id="thead">
+            <td>Year</td>
+            <td>Thesis Title</td>
+            <td></td>
+            <td></td>
+        </tr>
+    {% for thesis in thesis_query %}
+        <tr id="tbody">
+            <td  style="width:5%;text-align:center">{{thesis.year}}</td>
+            <td  style="width:55%"> <a href="/thesis/{{thesis.key.id()}}">{{thesis.title}} </a></td>
+            <td  style="width:3%"><a href="/edit_thesis/{{thesis.key.id()}}">&nbsp &nbsp<img src="/static/img/edit.png"></a></td>
+            <td  style="width:3%"><a href="/delete_thesis/{{thesis.key.id()}}"><img src="/static/img/Delete.png"></a></td>
+        </tr>
+    {% endfor %}
+</table>
+</div>
+</div>
+</body>
+</html>
