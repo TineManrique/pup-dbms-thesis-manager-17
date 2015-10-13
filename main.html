@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thesis Database System</title>
+    <link rel="stylesheet" href="http://harvesthq.github.io/chosen/chosen.css">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link type="text/css" rel="stylesheet" href="/static/style.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/jquery.js" ></script> 
+    <script src="http://harvesthq.github.io/chosen/chosen.jquery.js"></script>
+
+<style>
+.chosen-container-multi .chosen-choices li.search-field {
+    color:#333 !important;
+}
+.chosen-container-multi .chosen-choices li.search-field input[type="text"] {
+    color:#333 !important;
+ 
+}
+.chosen-container-multi .chosen-choices li.search-choice {
+    color:#333 !important;
+    width: 40% !important;
+ 
+}
+.chosen-container-multi .chosen-choices li.search-choice span {
+    color:#333 !important;
+ 
+}
+span{
+    margin-left: 2% !important;
+}
+.chosen-container-single .chosen-single{
+    height: 35px !important;
+}
+.chosen-container-multi .chosen-choices{
+    border-radius: 5px !important;
+    height: 20% !important;
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1>Create Your Thesis Entry</h1>
+</div>
+<div class="panel panel-default">
+<div class="panel-body">
+<form class="form-horizontal" id="create-form" action="/home" method="post" >
+    
+    <div class="form-group">
+    <label class="col-lg-2 control-label"> Department:</label>
+        <div class="col-lg-offset-1 col-lg-6">
+        <input type='text' class="form-control" name='department_name' placeholder='department' required autofocus />
+        </div> 
+    </div>
+    
+    <div class="form-group">
+    <label class="col-lg-2 control-label"> Year:</label>
+        <div class="col-lg-offset-1 col-lg-3">
+        <select name='year' class="form-control" required autofocus>
+                <option value disabled selected>-- Select --</option>
+                <option>2011</option>
+                <option>2012</option>
+                <option>2013</option>
+                <option>2014</option>
+                <option>2015</option>
+        </select>
+        </div> 
+    </div>
+    <div class="form-group">
+    <label class="col-lg-2 control-label"> Title:</label>
+        <div class="col-lg-offset-1 col-lg-8">
+            <input type='text' class="form-control" name='title' placeholder='thesis title' required autofocus />
+        </div>
+    </div>
+
+    <div class="form-group">
+    <label class="col-lg-2 control-label"> Subtitle:</label>
+        <div class="col-lg-offset-1 col-lg-8">
+            <input type='text' class="form-control" name='subtitle' placeholder='subtitle' required autofocus />
+        </div>
+    </div>
+
+    <div class="form-group">        
+    <label class="col-lg-2 control-label"> Abstract:</label>
+        <div class="col-lg-offset-1 col-lg-8">
+            <textarea type='text' class="form-control" name='abstract' placeholder='thesis abstract' required autofocus></textarea>
+        </div>
+    </div>
+
+    <div class="form-group" style="border-radius:10px">
+    <label class="col-lg-2 control-label"> Adviser:</label>
+        <div style="border-radius:10px" class="col-lg-offset-1 col-lg-8">
+            <select name='adviser' placeholder='Adviser' id="chosen-select-adviser" class="form-control" required autofocus>
+                    <option value disabled selected>Search</option>
+                {% for faculty in faculty_list %}
+                    <option value="{{faculty.faculty_name}}">{{faculty.faculty_name}}</option>
+
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+    <label class="col-lg-2 control-label"> Section:</label>
+            <div class="col-lg-offset-1 col-lg-3">
+                <select name='section' class="form-control" required autofocus>
+                        <option value disabled selected>-- Select --</option>
+                        <option>1</option>
+                        <option>2</option>
+                        <option>3</option>
+                        <option>4</option>
+                        <option>5</option>
+                </select> 
+            </div>
+    </div>
+
+    <div class="form-group">
+    <label class="col-lg-2 control-label"> Members:</label>
+        <div class="col-lg-offset-1 col-lg-6">
+            <input type='text' class="form-control" name='mem1' placeholder='Member 1' required autofocus />
+        </div>
+        <div class="col-lg-offset-3 col-lg-6">
+            <input type='text' class="form-control" name='mem2' placeholder='Member 2' required autofocus />
+        </div>
+        <div class="col-lg-offset-3 col-lg-6">
+            <input type='text' class="form-control" name='mem3' placeholder='Member 3' required autofocus />
+        </div>
+        <div class="col-lg-offset-3 col-lg-6">
+            <input type='text' class="form-control" name='mem4' placeholder='Member 4' required autofocus />
+        </div>
+        <div class="col-lg-offset-3 col-lg-6">
+            <input type='text' class="form-control" name='mem5' placeholder='Member 5' required autofocus />
+        </div>
+    </div>
+<!--
+    <div class="form-group" style="border-radius:10px">
+    <label class="col-lg-2 control-label"> Members:</label>
+        <div style="border-radius:10px" class="col-lg-offset-1 col-lg-8">
+            <select name='proponent' placeholder='Members' class="form-control" multiple id="chosen-select" required autofocus>
+                <option value="member1">weh</option>
+                <option value="member2">ehgf</option>
+                <option value="member3">jhgfd</option>
+            </select>
+        </div>
+    </div>
+-->
+
+
+<!--
+    <div class="form-group">        
+    <label class="col-lg-2 control-label"> Tags:</label>
+        <div class="col-lg-offset-1 col-lg-8">
+            <textarea type='text' class="form-control" name='tags' placeholder='Keywords' required autofocus></textarea>
+        </div>
+    </div>
+-->
+    <div class="form-group">
+        <div class="col-lg-offset-3 col-lg-5">
+            <button type='submit' class="btn btn-primary" id="submitbtn">SUBMIT</button>
+        </div>
+    </div>
+    </form>
+    
+    <a href="/thesis/list/all">View List</a> |
+    <a href="/student/create">Add Student</a> |
+    <a href="/faculty/create">Add Faculty</a> |
+    <a href="/university/create">Add University</a> |
+    <a href="/college/create">Add College</a> |
+    <a href="/department/create">Add Department</a>
+
+</div>
+</div>
+<script type="text/javascript" src='/static/script.js'></script>
+</body>
+</html>
