@@ -80,6 +80,12 @@ class Department(ndb.Model):
     	college =College.query(College.university_key == university.key).get()
     	return cls.query(cls.college_key == college.key).get()
 
+    @classmethod
+    def get_by_key(cls, keyname):
+        try:
+            return ndb.Key(cls, keyname).get()
+        except Exception:
+            return None
 
 class Thesis(ndb.Model):
     
@@ -117,9 +123,7 @@ def Process_CSV(blob_info):
 		user = users.get_current_user()
 		tag_list = []
 		articles={'a','an', 'the','is', 'are', 'this', 'that', 'for', 'to', 'and','with', 'as', 'based'}
-		title_list = row['Title'].lower().split(' ')
-		thesis = Thesis(id=''.join(title_list))
-		tag_list.extend(title_list)
+		thesis = Thesis()
 		thesis.year = row['Year']
 		thesis.title = row['Title']
 		thesis.abstract = row['Abstract']
@@ -328,7 +332,7 @@ class Filter2011Page(webapp2.RequestHandler):
     def get(self):
 
         user = users.get_current_user()
-        thesis_query = Thesis.query(Thesis.year == "2011")
+        thesis_list = Thesis.query(Thesis.year == "2011")
 
         if user:
 
@@ -340,7 +344,7 @@ class Filter2011Page(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_query': thesis_query
+            'thesis_list': thesis_list
             }
 
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -369,7 +373,7 @@ class Filter2012Page(webapp2.RequestHandler):
     def get(self):
 
         user = users.get_current_user()
-        thesis_query = Thesis.query(Thesis.year == "2012")
+        thesis_list = Thesis.query(Thesis.year == "2012")
 
         if user:
 
@@ -381,7 +385,7 @@ class Filter2012Page(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_query': thesis_query
+            'thesis_list': thesis_list
             }
 
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -398,7 +402,7 @@ class Filter2012Page(webapp2.RequestHandler):
                 'user': user,
                 'status': status,
                 'url': url,
-                'url_linktext': url_linktext,
+                'url_linktext': url_linktext
             }
             
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -411,7 +415,7 @@ class Filter2013Page(webapp2.RequestHandler):
 
         user = users.get_current_user()
 
-        thesis_query = Thesis.query(Thesis.year == "2013")
+        thesis_list = Thesis.query(Thesis.year == "2013")
 
         if user:
 
@@ -423,7 +427,7 @@ class Filter2013Page(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_query': thesis_query
+            'thesis_list': thesis_list
             }
 
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -453,7 +457,8 @@ class Filter2014Page(webapp2.RequestHandler):
 
         user = users.get_current_user()
 
-        thesis_query = Thesis.query(Thesis.year == "2014")
+        thesis_list = Thesis.query(Thesis.year == "2014")
+
 
         if user:
 
@@ -465,7 +470,7 @@ class Filter2014Page(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_query': thesis_query
+            'thesis_list': thesis_list
             }
 
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -483,6 +488,7 @@ class Filter2014Page(webapp2.RequestHandler):
                 'status': status,
                 'url': url,
                 'url_linktext': url_linktext,
+                'thesis_query' : thesis_query
             }
             
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -496,7 +502,7 @@ class Filter2015Page(webapp2.RequestHandler):
 
         user = users.get_current_user()
 
-        thesis_query = Thesis.query(Thesis.year == "2015")
+        thesis_list = Thesis.query(Thesis.year == "2015")
 
         if user:
 
@@ -508,7 +514,7 @@ class Filter2015Page(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_query': thesis_query
+            'thesis_list': thesis_list
             }
 
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -535,6 +541,7 @@ class Filter2015Page(webapp2.RequestHandler):
 
 class ThesisListPage(webapp2.RequestHandler):
     def get(self):
+        '''
         thesis_list = []
         thesiss = Thesis.query().order(-Thesis.date).fetch()
         logging.info(thesiss)
@@ -545,7 +552,8 @@ class ThesisListPage(webapp2.RequestHandler):
                     'thesis_title':thes.title,
                     'thesis_year':thes.year
                     });
-
+        '''
+        thesis_list = Thesis.query()
         user = users.get_current_user()
 
         if user:
@@ -561,7 +569,8 @@ class ThesisListPage(webapp2.RequestHandler):
             'thesis_list': thesis_list
             }
 
-            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
             template = JINJA_ENVIRONMENT.get_template('thesis_list_page.html')
             self.response.write(template.render(template_values))
 
@@ -591,7 +600,7 @@ class APIThesisHandler(webapp2.RequestHandler):
 
         for thesis in thesiss:
             thesis_list.append({
-                'id': thesis.key.urlsafe(),
+                'id': thesis.key.id(),
                 'department_key': thesis.department_key,
                 'year' : thesis.year,
                 'title' : thesis.title,
@@ -610,7 +619,7 @@ class APIThesisHandler(webapp2.RequestHandler):
 
         for user in users:
             user_list.append({
-                'id': user.key.urlsafe(),
+                'id': user.key.id(),
                 'created_by': user.created_by,
                 'email' : user.email,
                 'first_name': user.first_name,
@@ -653,7 +662,7 @@ class APIThesisHandler(webapp2.RequestHandler):
         'data':{
                 'created_by': thesis.created_by,
                 'email' : thesis.email,              
-                'id': thesis.key.urlsafe(),
+                'id': thesis.key.id(),
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'user_type': user.user_type,
@@ -672,16 +681,17 @@ class APIThesisHandler(webapp2.RequestHandler):
 
 
 class DisplayThesisPage(webapp2.RequestHandler):
-    def get(self, thesis_id):
-        #thesis = Thesis.query().order(-Thesis.date).fetch()
+    def get(self,thesis_id):
+        thesis = Thesis.query().get()
 
-        #t = Thesis.query().fetch()
+        #thesis = Thesis.query().fetch()
         
 
         #for t in thesis:
         	#thesis_title= t.title
 
-        #qry = Thesis.query(Thesis.tags.IN(thesis.tags))
+        qry = Thesis.query(Thesis.tags.IN(thesis.tags))
+        '''
         thesis_list = []
         thesiss = Thesis.query().order(-Thesis.date).fetch()
         logging.info(thesiss)
@@ -693,10 +703,21 @@ class DisplayThesisPage(webapp2.RequestHandler):
                     'thesis_year':thes.year,
                     'thesis_abstract': thes.abstract
                     });
+        '''
+        '''
+        url_string = Thesis.urlsafe()
+        thesis = ndb.Key(urlsafe=url_string)
+        thesis_list = thesis.get()
+        '''
+        #thesis_list= Thesis.get_by_id(thesis_id)
+        #thesis = Thesis.query().fetch()
+        #thesis_list = Thesis.get_by_id(thesis_name)
+        thesis_list = Thesis.get_by_id(int(thesis_id))
+        
+
         user = users.get_current_user()
 
         if user:
-
             
             url = users.create_logout_url('/login')
             url_linktext = 'LOG OUT'
@@ -706,18 +727,107 @@ class DisplayThesisPage(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_list': thesis_list
+            'thesis_list': thesis_list,
+            #'thesis_year':thesis_year,
             #'title': title
             #'thesis_title': thesis_title,
             #'thesis_title': thesis_title,
             #'thesis_year': thesis_year,
-            #'qry':qry
+            'qry':qry
 
             }
             
             template = JINJA_ENVIRONMENT.get_template('login.html')
             self.response.write(template.render(template_values))
             template = JINJA_ENVIRONMENT.get_template('view_thesis.html')
+            self.response.write(template.render(template_values))
+            
+
+        else:
+            url = users.create_login_url('/home')
+            url_linktext = 'LOG IN'
+            status = 'Log in to your account'
+            user = ' ' 
+            template_values = {
+                'user': user,
+                'status': status,
+                'url': url,
+                'url_linktext': url_linktext,
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('index.html')
+            self.response.write(template.render())
+
+class DisplayStudentPage(webapp2.RequestHandler):
+    def get(self, student_id):
+        student = Student.get_by_id(int(student_id))
+        
+
+        user = users.get_current_user()
+
+        if user:
+            
+            url = users.create_logout_url('/login')
+            url_linktext = 'LOG OUT'
+            status = 'Hello, '
+            template_values = {
+            'user': user,
+            'status': status,
+            'url': url,
+            'url_linktext': url_linktext,
+            'student': student
+
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('view_student.html')
+            self.response.write(template.render(template_values))
+            
+
+        else:
+            url = users.create_login_url('/home')
+            url_linktext = 'LOG IN'
+            status = 'Log in to your account'
+            user = ' ' 
+            template_values = {
+                'user': user,
+                'status': status,
+                'url': url,
+                'url_linktext': url_linktext,
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('index.html')
+            self.response.write(template.render())
+
+class DisplayFacultyPage(webapp2.RequestHandler):
+    def get(self, faculty_id):
+        faculty = Faculty.get_by_id(int(faculty_id))
+        
+
+        user = users.get_current_user()
+
+        if user:
+            
+            url = users.create_logout_url('/login')
+            url_linktext = 'LOG OUT'
+            status = 'Hello, '
+            template_values = {
+            'user': user,
+            'status': status,
+            'url': url,
+            'url_linktext': url_linktext,
+            'faculty': faculty
+
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('view_faculty.html')
             self.response.write(template.render(template_values))
             
 
@@ -1324,6 +1434,8 @@ class CollegeListPage(webapp2.RequestHandler):
     def get(self):
 
         college = College.query().order(-College.date).fetch()
+        university= college.university_key.get()
+        university_name = university.university_name
         logging.info(college)
 
         user = users.get_current_user()
@@ -1338,7 +1450,8 @@ class CollegeListPage(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'college_list': college
+            'college_list': college,
+            'university_name': university_name
             }
 
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -1374,11 +1487,8 @@ class DeleteEntry(webapp2.RequestHandler):
 class EditEntry(webapp2.RequestHandler):
     def get(self, thesis_id):
         #thesis = Thesis.get_by_id(thesis_id)
-        key = ndb.Key('Thesis', thesis_id)
-        thesis = key.get()
-        template_data = {
-            'thesis': thesis
-        }
+        thesis = Thesis.get_by_id(int(thesis_id))
+        
         user = users.get_current_user()
 
         if user:
@@ -1391,12 +1501,13 @@ class EditEntry(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
+            'thesis': thesis
             }
         
         template = JINJA_ENVIRONMENT.get_template('login.html')
         self.response.write(template.render(template_values))
         template = JINJA_ENVIRONMENT.get_template('edit.html')
-        self.response.write(template.render(template_data))
+        self.response.write(template.render(template_values))
 
     def post(self, thesis_id):
         
@@ -1437,6 +1548,8 @@ app = webapp2.WSGIApplication([
     ('/thesis/list/2015',Filter2015Page),
     ('/thesis/list/all', ThesisListPage),
     ('/thesis/(.*)', DisplayThesisPage),
+    ('/student/(.*)', DisplayStudentPage),
+    ('/faculty/(.*)', DisplayFacultyPage),
     ('/api/thesis',APIThesisHandler),
     ('/upload', UploadPageHandler),
     ('/search', SearchPage),
