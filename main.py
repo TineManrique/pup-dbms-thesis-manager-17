@@ -7,7 +7,8 @@ import os
 import logging
 import json
 import urllib
-
+from google.appengine.ext import blobstore
+from google.appengine.ext.webapp import blobstore_handlers
 
 JINJA_ENVIRONMENT = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
@@ -31,11 +32,11 @@ class Faculty(ndb.Model):
     date = ndb.DateTimeProperty(auto_now_add=True)
 
     @classmethod
-    def get_by_key(cls, keyname):
-        try:
-            return ndb.Key(cls, keyname).get()
-        except Exception:
-            return None
+    def get_by_name(cls, adviser_name):
+    	try:
+    		return ndb.Key(cls, adviser_name).get()
+    	except Exception:
+    		return None
 
 class Student(ndb.Model):
     full_name = ndb.StringProperty(indexed=True)
@@ -46,13 +47,14 @@ class Student(ndb.Model):
     year_graduated = ndb.StringProperty(indexed=True)
     department = ndb.StringProperty(indexed=True)
     date = ndb.DateTimeProperty(auto_now_add=True)
-
-    @classmethod
-    def get_by_key(cls, keyname):
-        try:
-            return ndb.Key(cls, keyname).get()
-        except Exception:
-            return None
+'''
+@classmethod
+def get_by_key(cls, keyname):
+    try:
+        return ndb.Key(cls, keyname).get()
+    except Exception:
+        return None
+'''
 
 class University(ndb.Model):
     university_name = ndb.StringProperty(indexed=True)
@@ -70,22 +72,17 @@ class Department(ndb.Model):
     department_name = ndb.StringProperty(indexed=True)
     college_key = ndb.KeyProperty(indexed=True)
     chairperson = ndb.StringProperty(indexed=True)
-    
-    @classmethod
-    def get_by_key(cls, keyname):
-        try:
-            return ndb.Key(cls, keyname).get()
-        except Exception:
-            return None
-
     date = ndb.DateTimeProperty(auto_now_add=True)
 
+    @classmethod
+    def get_department(cls, dept, college, uni):
+    	university = University.query(University.university_name == uni).get()
+    	college =College.query(College.university_key == university.key).get()
+    	return cls.query(cls.college_key == college.key).get()
+
+
 class Thesis(ndb.Model):
-    # username = ndb.StringProperty(indexed=True)
-    # created_by = ndb.StringProperty(indexed=True)
-    # email = ndb.StringProperty(indexed=True)
-    # university = ndb.StringProperty(indexed=True)
-    # college = ndb.StringProperty(indexed=True)
+    
     created_by = ndb.KeyProperty(indexed=True)
     year = ndb.StringProperty(indexed=True)
     title = ndb.StringProperty(indexed=True)
@@ -104,175 +101,154 @@ class Thesis(ndb.Model):
     # member5 = ndb.StringProperty(indexed=True)
     date = ndb.DateTimeProperty(auto_now_add=True)
 
-'''
-thesiss = Thesis.query().order(-Thesis.date).fetch()
-qry = Thesis.query(Thesis.year == '2011')
+def Process_CSV(blob_info):
+	blob_reader = blobstore.BlobReader(blob_info.key())
+	reader = csv.DictReader(blob_reader, delimiter=',')
+	uni = University(university_name='Polytechnic University of the Philippines', address='Sta. Mesa, Manila', initials='PUP')
+	uni.put()
+	
+	college = College(college_name='Engineering', university_key=uni.key)
+	college.put()
+	
+	dept = Department(department_name='Computer Engineering', chairperson= 'Pedrito Tenerife Jr.', college_key=college.key)
+	dept.put()
 
-for qry in thesiss:
-    thesis_list.append({
-        'id': thesis.key.id(),
-        'university':thesis.university,
-        'title':thesis.title,
-        'section':thesis.section
-        });
+	for row in reader:
+		user = users.get_current_user()
+		tag_list = []
+		articles={'a','an', 'the','is', 'are', 'this', 'that', 'for', 'to', 'and','with', 'as', 'based'}
+		title_list = row['Title'].lower().split(' ')
+		thesis = Thesis(id=''.join(title_list))
+		tag_list.extend(title_list)
+		thesis.year = row['Year']
+		thesis.title = row['Title']
+		thesis.abstract = row['Abstract']
+		thesis.section = row['Section']
+		thesis.subtitle = ''
+		faculty = Faculty.get_by_name(row['Adviser'].lower().replace(' ', ''))
+		if faculty is None:
+			if row['Adviser'] != '':
+				faculty = Faculty(id=row['Adviser'].lower().replace(' ', ''), 
+					#first_name=row['Adviser'].split(' ')[0].title(),  last_name=row['Adviser'].split(' ')[1].title())
+					faculty_name=row['Adviser'].title())
+				tag_list.extend(row['Adviser'].lower().split(' '))
+			else:
+				faculty = Faculty(id='Anonymous', faculty_name='Professor')
+			faculty.put()
+			thesis.adviser_key = faculty.key
+		else:
+			#tag_list.extend(row['Adviser'].lower().split(' '))
+			thesis.adviser_key = faculty.key
+		member_list = [
+			row['Member 1'], 
+			row['Member 2'], 
+			row['Member 3'], 
+			row['Member 4'], 
+			row['Member 5']
+			]
+		member_keys = []
+		for member in member_list:
+			if member != '':
+				tag_list.extend(member.lower().split(' '))
+				student = Student(full_name=member)
+				student.put()
+				member_keys.append(student.key)
+		for tag in tag_list:
+			if tag not in articles:
+				tag=tag.replace('.','').replace(',','').replace(':','').replace(';','')
+		thesis.proponent_keys = member_keys
+		thesis.tags = tag_list
+		thesis.department_key = dept.key
+		thesis.put()
+	
 
+class UploadPageHandler(blobstore_handlers.BlobstoreUploadHandler):
+	def get(self):
 
-f = csv.reader(open('PUPCOEThesisList.csv' , 'r'), skipinitialspace= True)
-for row in f:
-    thesis = Thesis()
-    thesis.university = row[0]
-    thesis.college = row[1]
-    thesis.department = row[2]
-    thesis.year = row[3]
-    thesis.title = row[4]
-    thesis.abstract = row[5]
-    thesis.section =row[6]
-    thesis.adviser = row[7]
-    thesis.member1 = row[8]
-    thesis.member2 = row[9]
-    thesis.member3 = row[10]
-    thesis.member4 = row[11]
-    thesis.member5 = row[12]
-    thesis.put()
-'''
+		upload_url = blobstore.create_upload_url('/upload')
+		template_data = {
+			'upload_url': upload_url
+		}
+		template = JINJA_ENVIRONMENT.get_template('upload.html')
+		self.response.write(template.render(template_data))
+		
+	def post(self):
+		upload_files = self.get_uploads('file')  # 'file' is file upload field in the form
+		blob_info = upload_files[0]
+		Process_CSV(blob_info)
 
-class ImportHandler(webapp2.RequestHandler):
+		blobstore.delete(blob_info.key())  # optional: delete file after import
+		self.redirect('/upload')
+
+class LoginPageHandler(webapp2.RequestHandler):
     def get(self):
-        file = open(os.path.join(os.path.dirname(__file__), 'PUPCOEThesisList.csv'))
-        # logging.info(file)
-        fileReader = csv.reader(file)
+      
+        user = users.get_current_user()
 
-        department_key = ndb.Key(urlsafe='ah5kZXZ-cHVwLWRibXMtdGhlc2lzLW1hbmFnZXItMTdyFwsSCkRlcGFydG1lbnQYgICAgICAgAsM')
-        department = department_key.get()
-        college = department.college_key.get()
-        university = college.university_key.get()
-        logging.info(department.department_name + ' ' + college.college_name + ' ' + university.initials)
+        if user:
 
-        #mem = []
+            url = users.create_logout_url('/login')
+            url_linktext = 'LOG OUT'
+            status = 'Hello, '
 
-        for row in fileReader:
-            thesis = Thesis()
-            thesis.year = row[3]
-            thesis.title = row[4]
-            subtitle = ''
-            thesis.abstract = row[5]
-            thesis.section = row[6]
+            template_values = {
+                'user': user,
+                'status': status,
+                'url': url,
+                'url_linktext': url_linktext,
+            }
+  
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('index.html')
+            self.response.write(template.render())
             
-            member1 = row[8]
-            member2 = row[9]
-            member3= row[10]
-            member4 = row[11]
-            member5= row[12]
-            
-            # thesis.department_key = department_key
-            #thesis.tags = ['pupcoe', 'mcu']
-            adviser_name = row[7] # 'Rodolfo Talan'
-            adviser_keyname = adviser_name.strip().replace(' ', '').lower()
-            adviser = Faculty.get_by_key(adviser_keyname)
+        else:
+            url = users.create_login_url('/register')
+            url_linktext = 'LOG IN'
+            status = 'Log in to your account'
+            user = ' ' 
+           
+            template_values = {
+            'user': user,
+            'status': status,
+            'url': url,
+            'url_linktext': url_linktext,
+            }
 
-            articles={'a','an', 'the','is', 'are', 'this', 'that', 'for', 'to', 'and'}
-            tags = []
-            title = thesis.title
-            words = title.lower().split()
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('index.html')
+            self.response.write(template.render())
 
-            for word in words:
-                if word not in articles:
-                    tags.append(word)
-                    thesis.tags = tags
+class RegisterPageHandler(webapp2.RequestHandler):
 
-            '''
-            for i in range(0, len(mem)):
-                mem[0]_keyname =mem[0].strip().replace(' ', '').lower()
-            '''
-
-        
-            proponent1_keyname = member1.strip().replace(' ', '').lower()
-            proponent2_keyname = member2.strip().replace(' ', '').lower()
-            proponent3_keyname = member3.strip().replace(' ', '').lower()
-            proponent4_keyname = member4.strip().replace(' ', '').lower()
-            proponent5_keyname = member5.strip().replace(' ', '').lower()
-            proponent1 = Student.get_by_key(proponent1_keyname)
-            proponent2 = Student.get_by_key(proponent2_keyname)
-            proponent3 = Student.get_by_key(proponent3_keyname)
-            proponent4 = Student.get_by_key(proponent4_keyname)
-            proponent5 = Student.get_by_key(proponent5_keyname)
-        
-
-            if adviser is None:
-                adviser = Faculty(key=ndb.Key(Faculty, adviser_keyname), faculty_name=adviser_name)
-                adviser.put()
-            thesis.department_key = department_key
-            thesis.adviser_key = adviser.key
-            thesis.put()
-
-            
-            if proponent1 is None:
-                proponent1 = Student(key=ndb.Key(Student, proponent1_keyname), full_name=member1)
-                proponent1.put()
-            thesis.department_key = department_key
-            thesis.proponent_keys = proponent1.key
-            thesis.put()
-
-            if proponent2 is None:
-                proponent2 = Student(key=ndb.Key(Student, proponent2_keyname), full_name=member2)
-                proponent2.put()
-            thesis.department_key = department_key
-            thesis.proponent_keys = proponent2.key
-            thesis.put()
-
-            if proponent3 is None:
-                proponent3 = Student(key=ndb.Key(Student, proponent1_keyname), full_name=member3)
-                proponent3.put()
-            thesis.department_key = department_key
-            thesis.proponent_keys = proponent3.key
-            thesis.put()
-
-            if proponent4 is None:
-                proponent4 = Student(key=ndb.Key(Student, proponent1_keyname), full_name=member4)
-                proponent4.put()
-            thesis.department_key = department_key
-            thesis.proponent_keys = proponent1.key
-            thesis.put()
-
-            if proponent5 is None:
-                proponent5 = Student(key=ndb.Key(Student, proponent1_keyname), full_name=member5)
-                proponent5.put()
-            thesis.department_key = department_key
-            thesis.proponent_keys = proponent5.key
-            thesis.put()
-        
-
-        template = JINJA_ENVIRONMENT.get_template('main.html')
-        #self.response.write()
-
-class SetupDBHandler(webapp2.RequestHandler):
     def get(self):
+        loggedin_user = users.get_current_user()
+        if loggedin_user: 
+            user_key = ndb.Key('User', loggedin_user.user_id())
+            user = user_key.get()
+            if user:
+                url = users.create_logout_url('/home')
+                url_linktext = 'LOG OUT'
+                status = 'Hello, '
+                template_values = {
+                    'url': url,
+                    'url_linktext': url_linktext,
+                    'status' : status
+                }
+                self.redirect('/home')
+            else:
+                template = JINJA_ENVIRONMENT.get_template('register.html')
+                self.response.write(template.render())
+        else:
+            self.redirect(users.create_login_url('/register'))
 
-        university = University(university_name='Polytechnic University of the Philippines', initials='PUP')
-        university.put()
+    def post(self):
 
-        #up = University(name='University of the Philippines', initials='UP')
-        #up.put()
-
-        college = College(college_name='Engineering', university_key=university.key)
-        college.put()
-
-        #college_up = College(name='Engineering', university_key=up.key)
-        #college_up.put()
-
-        #archi_college = College(name='Architecture', university_key=university.key)
-        #archi_college.put()
-
-        coe_department = Department(department_name='COE', college_key=college.key)
-        coe_department.put()
-
-        #coe_up_department = Department(name='COE', college_key=college_up.key)
-        #coe_up_department.put()
-
-        #ece_department = Department(name='ECE', college_key=college.key)
-        #ece_department.put()
-
-        self.response.write('Datastore setup completed')
+        user = User(id=users.get_current_user().user_id(), email= users.get_current_user().email(), first_name = self.request.get('first_name'), last_name = self.request.get('last_name')) 
+        user.put()
+        self.redirect('/home')
 
 class MainPageHandler(webapp2.RequestHandler):
     def get(self):
@@ -312,7 +288,6 @@ class MainPageHandler(webapp2.RequestHandler):
                 'url': url,
                 'url_linktext': url_linktext,
             }
-            
             template = JINJA_ENVIRONMENT.get_template('login.html')
             self.response.write(template.render(template_values))
             template = JINJA_ENVIRONMENT.get_template('index.html')
@@ -325,54 +300,29 @@ class MainPageHandler(webapp2.RequestHandler):
         faculty = Faculty()
         college = College()
         student = Student()
-        #mem = []
 
         department_name = self.request.get('department_name')
         adviser_name = self.request.get('adviser')
-        '''
-        mem[0] = self.request.get('mem1')
-        mem[1] = self.request.get('mem2')
-        mem[2] = self.request.get('mem3')
-        mem[3] = self.request.get('mem4')
-        mem[4] = self.request.get('mem5')
-
-        for i in range(0, len(mem)):
-            student.full_name = mem[i]
-            thesis.proponent_keys.append(student.put())
-        '''
-        #department_keyname = department_name
         department = Department.get_by_key(department_name)
-        '''
-        faculty = Faculty.get_by_key(adviser_name)
-        #adviser.put()
-
-        if faculty is None:
-            faculty = Faculty(key=ndb.Key(Faculty, faculty_name), faculty_name=adviser_name)
-            faculty.put()
-
-        thesis.adviser_key = faculty.put()
-        '''
-
+        
         if department is None:
             department = Department(key=ndb.Key(Department, department_name), department_name=department_name)
             department.put()
 
         thesis.department_key = department.put()
        
-        #thesis.created_by = users.get_current_user().user_id()
+       
         thesis.email = users.get_current_user().email()
-        #thesis.department_key = self.request.get('department')
         thesis.year = self.request.get('year')
         thesis.title = self.request.get('title')
         thesis.subtitle = self.request.get('subtitle')
         thesis.abstract = self.request.get('abstract')
         
         thesis.section = self.request.get('section')
-        #thesis.proponent_keys = self.request.get('proponent')
-        #thesis.tags= self.request.get('tags')
         thesis.key = thesis.put()
         thesis.put()
         self.redirect('/home')
+
 
 class Filter2011Page(webapp2.RequestHandler):
     def get(self):
@@ -583,13 +533,20 @@ class Filter2015Page(webapp2.RequestHandler):
             template = JINJA_ENVIRONMENT.get_template('index.html')
             self.response.write(template.render())
 
-class FilterAdviserPage(webapp2.RequestHandler):
+class ThesisListPage(webapp2.RequestHandler):
     def get(self):
+        thesis_list = []
+        thesiss = Thesis.query().order(-Thesis.date).fetch()
+        logging.info(thesiss)
+        #thesiss = Thesis.query().order(-Thesis.date).fetch()
+        for thes in thesiss:
+            thesis_list.append({
+                    'thesis_url':thes.key.urlsafe(),
+                    'thesis_title':thes.title,
+                    'thesis_year':thes.year
+                    });
 
         user = users.get_current_user()
-        faculty = Faculty.query().fetch()
-        adviser_name = self.request.get('adviser')
-        thesis_query = Thesis.query(Thesis.adviser_key == adviser_name)
 
         if user:
 
@@ -601,13 +558,11 @@ class FilterAdviserPage(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'thesis_query': thesis_query,
-            'faculty_list': faculty
+            'thesis_list': thesis_list
             }
 
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('filteradviser.html')
+            
+            template = JINJA_ENVIRONMENT.get_template('thesis_list_page.html')
             self.response.write(template.render(template_values))
 
         else:
@@ -626,81 +581,6 @@ class FilterAdviserPage(webapp2.RequestHandler):
             self.response.write(template.render(template_values))
             template = JINJA_ENVIRONMENT.get_template('index.html')
             self.response.write(template.render())
-
-class SearchPage(webapp2.RequestHandler):
-
-    def get(self):
-        thesis = Thesis.query().order(-Thesis.date).fetch()
-        
-        user = users.get_current_user()
-
-        #thesis_query = Thesis.query(Thesis.title.IN("Automated"))
-
-        if user:
-
-            url = users.create_logout_url('/login')
-            url_linktext = 'LOG OUT'
-            status = 'Hello, '
-            template_values = {
-            'user': user,
-            'status': status,
-            'url': url,
-            'url_linktext': url_linktext,
-            'thesis_list': thesis
-
-            }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('search.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
-
-
-class RegisterPageHandler(webapp2.RequestHandler):
-
-    def get(self):
-        loggedin_user = users.get_current_user()
-        if loggedin_user: 
-            user_key = ndb.Key('User', loggedin_user.user_id())
-            user = user_key.get()
-            if user:
-                url = users.create_logout_url('/home')
-                url_linktext = 'LOG OUT'
-                status = 'Hello, '
-                template_values = {
-                    'url': url,
-                    'url_linktext': url_linktext,
-                    'status' : status
-                }
-                self.redirect('/home')
-            else:
-                template = JINJA_ENVIRONMENT.get_template('register.html')
-                self.response.write(template.render())
-        else:
-            self.redirect(users.create_login_url('/register'))
-
-    def post(self):
-
-        user = User(id=users.get_current_user().user_id(), email= users.get_current_user().email(), first_name = self.request.get('first_name'), last_name = self.request.get('last_name')) 
-        user.put()
-        self.redirect('/home')
 
 class APIThesisHandler(webapp2.RequestHandler):
     def get(self):
@@ -711,7 +591,7 @@ class APIThesisHandler(webapp2.RequestHandler):
 
         for thesis in thesiss:
             thesis_list.append({
-                'id': thesis.key.id(),
+                'id': thesis.key.urlsafe(),
                 'department_key': thesis.department_key,
                 'year' : thesis.year,
                 'title' : thesis.title,
@@ -730,7 +610,7 @@ class APIThesisHandler(webapp2.RequestHandler):
 
         for user in users:
             user_list.append({
-                'id': user.key.id(),
+                'id': user.key.urlsafe(),
                 'created_by': user.created_by,
                 'email' : user.email,
                 'first_name': user.first_name,
@@ -773,7 +653,7 @@ class APIThesisHandler(webapp2.RequestHandler):
         'data':{
                 'created_by': thesis.created_by,
                 'email' : thesis.email,              
-                'id': thesis.key.id(),
+                'id': thesis.key.urlsafe(),
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'user_type': user.user_type,
@@ -790,74 +670,122 @@ class APIThesisHandler(webapp2.RequestHandler):
         }
         self.response.out.write(json.dumps(response))
 
-class APIStudentHandler(webapp2.RequestHandler):
-    def get(self):
-        students = Student.query().order(-Student.date).fetch()
-        #users = User.query().order(-User.date).fetch()
-        student_list = []
-        #user_list = []
 
-        for student in students:
-            student_list.append({
-                'id': student.key.id(),
-                'full_name': student.full_name,
-                'email': student.email,
-                'student_number':student.student_number,
-                'phone_number':student.phone_number,
-                'birthdate':student.birthdate,
-                'year_graduated':student.year_graduated
-                });
+class DisplayThesisPage(webapp2.RequestHandler):
+    def get(self, thesis_id):
+        #thesis = Thesis.query().order(-Thesis.date).fetch()
 
-        response = {
-             'result' : 'OK',
-             'data' : student_list
-        }
-        '''
-        for user in users:
-            user_list.append({
-                'id': user.key.id(),
-                'created_by': user.created_by,
-                'email' : user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                });
-            
-        response = {
-             'result' : 'OK',
-             'data' : user_list
-        }
-        '''
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(response))
-
-    def post(self):
-        student = Student()
-    
+        #t = Thesis.query().fetch()
         
-        student.full_name = self.request.get('full_name')
-        student.email = self.request.get('email')
-        student.student_number = self.request.get('student_number')
-        student.phone_number = self.request.get('phone_number')
-        student.birthdate = self.request.get('birthdate')
-        student.year_graduated= self.request.get('year_graduated')
-       
 
-        student.key = student.put()
-        student.put()
+        #for t in thesis:
+        	#thesis_title= t.title
 
-        self.response.headers['Content-Type'] = 'application/json'
-        response = {
-        'result' : 'OK',
-        'data':{
-                'id': student.key.id(),
-                'full_name': student.full_name,
-                'email': student.email,
-                'phone_number':student.phone_number,
-                'birthdate':student.birthdate,
-                'year_graduated':student.year_graduated
-        }
-        }
-        self.response.out.write(json.dumps(response))
+        #qry = Thesis.query(Thesis.tags.IN(thesis.tags))
+        thesis_list = []
+        thesiss = Thesis.query().order(-Thesis.date).fetch()
+        logging.info(thesiss)
+        #thesiss = Thesis.query().order(-Thesis.date).fetch()
+        for thes in thesiss:
+            thesis_list.append({
+                    'thesis_url':thes.key.urlsafe(),
+                    'thesis_title':thes.title,
+                    'thesis_year':thes.year,
+                    'thesis_abstract': thes.abstract
+                    });
+        user = users.get_current_user()
+
+        if user:
+
+            
+            url = users.create_logout_url('/login')
+            url_linktext = 'LOG OUT'
+            status = 'Hello, '
+            template_values = {
+            'user': user,
+            'status': status,
+            'url': url,
+            'url_linktext': url_linktext,
+            'thesis_list': thesis_list
+            #'title': title
+            #'thesis_title': thesis_title,
+            #'thesis_title': thesis_title,
+            #'thesis_year': thesis_year,
+            #'qry':qry
+
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('view_thesis.html')
+            self.response.write(template.render(template_values))
+            
+
+        else:
+            url = users.create_login_url('/home')
+            url_linktext = 'LOG IN'
+            status = 'Log in to your account'
+            user = ' ' 
+            template_values = {
+                'user': user,
+                'status': status,
+                'url': url,
+                'url_linktext': url_linktext,
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('index.html')
+            self.response.write(template.render())
+
+class SearchPage(webapp2.RequestHandler):
+
+    def get(self):
+        thesis = Thesis.query().fetch()
+        student = Student.query().fetch()
+        
+        user = users.get_current_user()
+
+        #thesis_query = Thesis.query(Thesis.title.IN("Automated"))
+
+        if user:
+
+            url = users.create_logout_url('/login')
+            url_linktext = 'LOG OUT'
+            status = 'Hello, '
+            template_values = {
+            'user': user,
+            'status': status,
+            'url': url,
+            'url_linktext': url_linktext,
+            'thesis_list': thesis,
+            'student_list': student
+
+            }
+
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('search.html')
+            self.response.write(template.render(template_values))
+            #template = JINJA_ENVIRONMENT.get_template(thesis.key.urlsafe())
+           
+
+        else:
+            url = users.create_login_url('/home')
+            url_linktext = 'LOG IN'
+            status = 'Log in to your account'
+            user = ' ' 
+            template_values = {
+                'user': user,
+                'status': status,
+                'url': url,
+                'url_linktext': url_linktext,
+            }
+            
+            template = JINJA_ENVIRONMENT.get_template('login.html')
+            self.response.write(template.render(template_values))
+            template = JINJA_ENVIRONMENT.get_template('index.html')
+            self.response.write(template.render())
 
 class DeleteEntry(webapp2.RequestHandler):
     def get(self, thesis_id):
@@ -1264,55 +1192,11 @@ class StudentListPage(webapp2.RequestHandler):
             template = JINJA_ENVIRONMENT.get_template('index.html')
             self.response.write(template.render())
 
-class ThesisListPage(webapp2.RequestHandler):
-    def get(self):
-
-        thesiss = Thesis.query().order(-Thesis.date).fetch()
-        logging.info(thesiss)
-
-        user = users.get_current_user()
-
-        if user:
-
-            url = users.create_logout_url('/login')
-            url_linktext = 'LOG OUT'
-            status = 'Hello, '
-            template_values = {
-            'user': user,
-            'status': status,
-            'url': url,
-            'url_linktext': url_linktext,
-            'thesis_list': thesiss
-            }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('thesis_list_page.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
-
 class FacultyListPage(webapp2.RequestHandler):
     def get(self):
-
         faculty = Faculty.query().order(-Faculty.date).fetch()
         logging.info(faculty)
-
+        
         user = users.get_current_user()
 
         if user:
@@ -1342,7 +1226,7 @@ class FacultyListPage(webapp2.RequestHandler):
                 'user': user,
                 'status': status,
                 'url': url,
-                'url_linktext': url_linktext,
+                'url_linktext': url_linktext
             }
             
             template = JINJA_ENVIRONMENT.get_template('login.html')
@@ -1479,19 +1363,27 @@ class CollegeListPage(webapp2.RequestHandler):
             template = JINJA_ENVIRONMENT.get_template('index.html')
             self.response.write(template.render())
 
-class DisplayStudentPage(webapp2.RequestHandler):
-    def get(self, student_id):
+class DeleteEntry(webapp2.RequestHandler):
+    def get(self, thesis_id):
+        thesis = Thesis.get_by_id(thesis_id)
+        thesis.key.delete()
+        self.redirect('/thesis/list/all')
+        #self.response.out.write('<alert>Successfully Deleted</alert>')
 
-        student = Student.get_by_id(int(student_id))
 
-        #student = Student.query().order(-Student.date).fetch()
-        logging.info(student)
-
+class EditEntry(webapp2.RequestHandler):
+    def get(self, thesis_id):
+        #thesis = Thesis.get_by_id(thesis_id)
+        key = ndb.Key('Thesis', thesis_id)
+        thesis = key.get()
+        template_data = {
+            'thesis': thesis
+        }
         user = users.get_current_user()
 
         if user:
 
-            url = users.create_logout_url('/login')
+            url = users.create_logout_url(self.request.uri)
             url_linktext = 'LOG OUT'
             status = 'Hello, '
             template_values = {
@@ -1499,276 +1391,60 @@ class DisplayStudentPage(webapp2.RequestHandler):
             'status': status,
             'url': url,
             'url_linktext': url_linktext,
-            'student_list': student
             }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('view_student.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
-'''
-class DisplayUniversityPage(webapp2.RequestHandler):
-    def get(self, student_id):
-        universities = University.get_by_id(int(student_id))
-
-        user = users.get_current_user()
-
-        if user:
-
-            url = users.create_logout_url('/login')
-            url_linktext = 'LOG OUT'
-            status = 'Hello, '
-            template_values = {
-            'user': user,
-            'status': status,
-            'url': url,
-            'url_linktext': url_linktext,
-            'university': universities
-            }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('view_university.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
-
-class DisplayFacultyPage(webapp2.RequestHandler):
-    def get(self, student_id):
-        faculties = Thesis.get_by_id(int(student_id))
-
-        user = users.get_current_user()
-
-        if user:
-
-            url = users.create_logout_url('/login')
-            url_linktext = 'LOG OUT'
-            status = 'Hello, '
-            template_values = {
-            'user': user,
-            'status': status,
-            'url': url,
-            'url_linktext': url_linktext,
-            'faculty': faculties
-            }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('view_faculty.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
-
-class DisplayCollegePage(webapp2.RequestHandler):
-    def get(self, student_id):
-        colleges = Thesis.get_by_id(int(student_id))
-
-        user = users.get_current_user()
-
-        if user:
-
-            url = users.create_logout_url('/login')
-            url_linktext = 'LOG OUT'
-            status = 'Hello, '
-            template_values = {
-            'user': user,
-            'status': status,
-            'url': url,
-            'url_linktext': url_linktext,
-            'college': colleges
-            }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('view_college.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
-'''
-
-
-class DisplayThesisPage(webapp2.RequestHandler):
-    def get(self, student_id):
-        thesis = Thesis.get_by_id(int(student_id))
-        #students_fname = []
-        #t = Thesis.query().fetch()
-        #t =Thesis.query().order(+Thesis.adviser_key).fetch()
-        #u =Thesis.query().order(+Thesis.department_key).fetch()
         
+        template = JINJA_ENVIRONMENT.get_template('login.html')
+        self.response.write(template.render(template_values))
+        template = JINJA_ENVIRONMENT.get_template('edit.html')
+        self.response.write(template.render(template_data))
 
+    def post(self, thesis_id):
         
-
-        '''
-        thesis =Thesis()
-        title =thesis.title
-        thesis.title = title.lower()
-        thesis = []
-
-        exist = any([thesis.title(word) != -1 for word in thesis.tags])
-
-        if exist:
-            thesis_list = thesis.append(thesis.title)
-            template_values = {
-            'thesis_list': thesis_list
-            }
-
-        '''
-
-
-        user = users.get_current_user()
-
-        if user:
-            '''
-            for thesis in t:
-                for i in range(len(thesis.proponent_keys)):
-                    entity = thesis.proponent_keys.get()
-                    students_fname[i] = entity.full_name
-
-            logging.info(students_fname)
-
-            for thesis in t:
-                a = thesis.adviser_key.get()
-                full_name = a.faculty_name
-            
-            for thesis in u:
-                a = thesis.department_key.get()
-                b = a.college_key.get()
-                college_name = b.college_name
-                department_name = a.department_name
-            '''
-            url = users.create_logout_url('/login')
-            url_linktext = 'LOG OUT'
-            status = 'Hello, '
-            template_values = {
-            'user': user,
-            'status': status,
-            'url': url,
-            'url_linktext': url_linktext,
-            'thesis': thesis,
-            #'full_name': full_name,
-            #'students_fname': students_fname,
-            #'department_name': department_name,
-            #'college_name':college_name
-
-            }
-
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('view_thesis.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            url = users.create_login_url('/home')
-            url_linktext = 'LOG IN'
-            status = 'Log in to your account'
-            user = ' ' 
-            template_values = {
-                'user': user,
-                'status': status,
-                'url': url,
-                'url_linktext': url_linktext,
-            }
-            
-            template = JINJA_ENVIRONMENT.get_template('login.html')
-            self.response.write(template.render(template_values))
-            template = JINJA_ENVIRONMENT.get_template('index.html')
-            self.response.write(template.render())
+        thesis = Thesis.get_by_id(thesis_id)
+        thesis.created_by = users.get_current_user().user_id()
+        thesis.email = users.get_current_user().email()
+        
+        thesis.department_key = self.request.get('department_key')
+        thesis.year = self.request.get('year')
+        thesis.title = self.request.get('title')
+        thesis.abstract = self.request.get('abstract')
+        thesis.adviser = self.request.get('adviser')
+        thesis.section = self.request.get('section')
+        thesis.proponent_keys = self.request.get('proponent_keys')
+        thesis.tags = self.request.get('tags')
+       
+        thesis.put()
+        self.redirect('/')
 
 app = webapp2.WSGIApplication([
-    
-    ('/setup', SetupDBHandler),
-    ('/csvimporter', ImportHandler),
-    ('/register', RegisterPageHandler),
-    ('/login', LoginPageHandler),
-    ('/edit_thesis/(.*)', EditEntry),
+	('/edit_thesis/(.*)', EditEntry),
     ('/delete_thesis/(.*)', DeleteEntry),
-    ('/api/thesis', APIThesisHandler),
-    ('/api/student', APIStudentHandler),
-    ('/home', MainPageHandler),
-    ('/', MainPageHandler),
-    ('/student/create', StudentCreatePageHandler),
+	('/student/create', StudentCreatePageHandler),
     ('/faculty/create', FacultyCreatePageHandler),
     ('/university/create', UniversityCreatePageHandler),
     ('/college/create', CollegeCreatePageHandler),
     ('/department/create', DepartmentCreatePageHandler),
+    ('/student/list', StudentListPage),
+    ('/faculty/list', FacultyListPage),
+    ('/faculty/list', FacultyListPage),
+    ('/university/list', UniversityListPage),
+    ('/department/list', DepartmentListPage),
+    ('/college/list', CollegeListPage),
     ('/thesis/list/2011',Filter2011Page),
     ('/thesis/list/2012',Filter2012Page),
     ('/thesis/list/2013',Filter2013Page),
     ('/thesis/list/2014',Filter2014Page),
     ('/thesis/list/2015',Filter2015Page),
-    ('/search', SearchPage), 
-    ('/student/list', StudentListPage),
-    ('student/(.*)',DisplayStudentPage),
     ('/thesis/list/all', ThesisListPage),
-    ('/thesis/list/adviser', FilterAdviserPage),
     ('/thesis/(.*)', DisplayThesisPage),
-    ('/faculty/list', FacultyListPage),
-    ('/university/list', UniversityListPage),
-    ('/department/list', DepartmentListPage),
-    ('/college/list', CollegeListPage)
-
+    ('/api/thesis',APIThesisHandler),
+    ('/upload', UploadPageHandler),
+    ('/search', SearchPage),
+    ('/register', RegisterPageHandler),
+    ('/login', LoginPageHandler),
+    ('/home', MainPageHandler),
+    ('/', MainPageHandler)
     
 
+   
 ], debug=True)
